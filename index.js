@@ -9,11 +9,17 @@ app.get('/scrape', async (req, res) => {
     return res.status(400).json({ error: 'URL is required' });
   }
 
+  let browser;
   try {
-    // This tells puppeteer to use the Chrome browser already installed on the server
-    const browser = await puppeteer.launch({ 
-      executablePath: process.env.CHROME_BIN || '/usr/bin/google-chrome',
-      args: ['--no-sandbox', '--disable-setuid-sandbox'] 
+    // We try the standard path for Render's Linux environment
+    browser = await puppeteer.launch({ 
+      executablePath: process.env.CHROME_BIN || '/usr/bin/google-chrome-stable',
+      args: [
+        '--no-sandbox', 
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu'
+      ] 
     });
     
     const page = await browser.newPage();
@@ -37,12 +43,13 @@ app.get('/scrape', async (req, res) => {
     res.json({ 
       title: productData.title,
       brand: productData.brand,
-      modelNumber: 'N/A', // We can extract this later if needed
+      modelNumber: 'N/A',
       prices: [{ store: 'Myntra', price: productData.price, url: url }],
       success: true 
     });
     
   } catch (error) {
+    if (browser) await browser.close();
     res.status(500).json({ error: 'Scraping failed: ' + error.message });
   }
 });
